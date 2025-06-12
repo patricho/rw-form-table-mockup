@@ -281,47 +281,49 @@
 </script>
 
 <div class="p-4">
-	<h1 class="mb-4 text-lg">RW Forms Table View Mockup</h1>
+	<div class="flex justify-between">
+		<h1 class="text-lg">RW Forms Table View Mockup</h1>
 
-	<div class="bg-base-200 mb-4 rounded-lg p-4">
-		<fieldset class="fieldset">
-			<legend class="fieldset-legend">Toggle expanded controls</legend>
-			<div class="flex gap-4">
-				<label class="label cursor-pointer gap-2">
-					<input
-						type="radio"
-						name="masterEdit"
-						class="radio radio-sm"
-						value="none"
-						checked={masterEditLevel === 'none'}
-						onchange={() => setAllEditLevel('none')}
-					/>
-					<span class="label-text">None</span>
-				</label>
-				<label class="label cursor-pointer gap-2">
-					<input
-						type="radio"
-						name="masterEdit"
-						class="radio radio-sm"
-						value="basic"
-						checked={masterEditLevel === 'basic'}
-						onchange={() => setAllEditLevel('basic')}
-					/>
-					<span class="label-text">Basic</span>
-				</label>
-				<label class="label cursor-pointer gap-2">
-					<input
-						type="radio"
-						name="masterEdit"
-						class="radio radio-sm"
-						value="all"
-						checked={masterEditLevel === 'all'}
-						onchange={() => setAllEditLevel('all')}
-					/>
-					<span class="label-text">All</span>
-				</label>
-			</div>
-		</fieldset>
+		<div class="bg-base-200 rounded-lg pr-4">
+			<fieldset class="fieldset">
+				<legend class="fieldset-legend">Toggle expanded controls</legend>
+				<div class="flex gap-4">
+					<label class="label cursor-pointer gap-2">
+						<input
+							type="radio"
+							name="masterEdit"
+							class="radio radio-sm"
+							value="none"
+							checked={masterEditLevel === 'none'}
+							onchange={() => setAllEditLevel('none')}
+						/>
+						<span class="label-text">None</span>
+					</label>
+					<label class="label cursor-pointer gap-2">
+						<input
+							type="radio"
+							name="masterEdit"
+							class="radio radio-sm"
+							value="basic"
+							checked={masterEditLevel === 'basic'}
+							onchange={() => setAllEditLevel('basic')}
+						/>
+						<span class="label-text">Basic</span>
+					</label>
+					<label class="label cursor-pointer gap-2">
+						<input
+							type="radio"
+							name="masterEdit"
+							class="radio radio-sm"
+							value="all"
+							checked={masterEditLevel === 'all'}
+							onchange={() => setAllEditLevel('all')}
+						/>
+						<span class="label-text">All</span>
+					</label>
+				</div>
+			</fieldset>
+		</div>
 	</div>
 
 	<div class="my-4 overflow-x-auto">
