@@ -11,7 +11,14 @@
 		mdiCircleOutline
 	} from '@mdi/js';
 
-	type FormControlType = 'TEXTBOX' | 'TEXTAREA' | 'CHECKBOX' | 'RADIOBUTTONLIST';
+	type FormControlType =
+		| 'TEXTBOX'
+		| 'TEXTAREA'
+		| 'CHECKBOX'
+		| 'RADIOBUTTONLIST'
+		| 'CHECKBOXLIST'
+		| 'DROPDOWNLIST'
+		| 'DATE';
 
 	type FormControlRow = {
 		id: number;
@@ -20,14 +27,19 @@
 		placeholder?: string;
 		defaultChecked?: boolean;
 		options?: string;
+		minDate?: string;
+		maxDate?: string;
 		required: boolean;
 	};
 
 	const typeDisplayNames = {
-		TEXTBOX: 'Text box',
-		TEXTAREA: 'Text area',
+		TEXTBOX: 'Textbox',
+		TEXTAREA: 'Textarea',
 		CHECKBOX: 'Checkbox',
-		RADIOBUTTONLIST: 'Radio button list'
+		RADIOBUTTONLIST: 'Radio button list',
+		CHECKBOXLIST: 'Checkbox list',
+		DROPDOWNLIST: 'Dropdown list',
+		DATE: 'Date picker'
 	} as const;
 
 	let rows = $state([
@@ -117,8 +129,11 @@
 		}
 	] as FormControlRow[]);
 
+	type EditLevel = 'none' | 'basic' | 'all';
+
 	let checked = $state([] as number[]);
-	let editingRows = $state(new Set<number>());
+	let masterEditLevel = $state<EditLevel>('none');
+	let rowEditLevels = $state(new Map<number, EditLevel>());
 
 	let newRow = $state({
 		title: '',
@@ -126,6 +141,8 @@
 		placeholder: '',
 		defaultChecked: false,
 		options: '',
+		minDate: '',
+		maxDate: '',
 		required: false
 	});
 
@@ -170,20 +187,31 @@
 	}
 
 	function toggleEdit(id: number) {
-		if (editingRows.has(id)) {
-			editingRows.delete(id);
+		const currentLevel = rowEditLevels.get(id) || 'none';
+		let nextLevel: EditLevel;
+
+		if (currentLevel === 'none') {
+			nextLevel = 'basic';
+		} else if (currentLevel === 'basic') {
+			nextLevel = 'all';
 		} else {
-			editingRows.add(id);
+			nextLevel = 'none';
 		}
-		editingRows = new Set(editingRows);
+
+		rowEditLevels.set(id, nextLevel);
+		rowEditLevels = new Map(rowEditLevels);
 	}
 
-	function toggleAllEdit() {
-		if (editingRows.size === rows.length) {
-			editingRows = new Set();
-		} else {
-			editingRows = new Set(rows.map((row) => row.id));
+	function setAllEditLevel(level: EditLevel) {
+		masterEditLevel = level;
+		for (const row of rows) {
+			rowEditLevels.set(row.id, level);
 		}
+		rowEditLevels = new Map(rowEditLevels);
+	}
+
+	function getEffectiveEditLevel(id: number): EditLevel {
+		return rowEditLevels.get(id) || masterEditLevel;
 	}
 
 	function setSelectedRequired(required: boolean) {
@@ -195,8 +223,8 @@
 	function deleteRow(id: number) {
 		rows = rows.filter((row) => row.id !== id);
 		checked = checked.filter((checkedId) => checkedId !== id);
-		editingRows.delete(id);
-		editingRows = new Set(editingRows);
+		rowEditLevels.delete(id);
+		rowEditLevels = new Map(rowEditLevels);
 	}
 
 	function addRow() {
@@ -214,8 +242,15 @@
 			rowToAdd.placeholder = newRow.placeholder;
 		} else if (newRow.type === 'CHECKBOX') {
 			rowToAdd.defaultChecked = newRow.defaultChecked;
-		} else if (newRow.type === 'RADIOBUTTONLIST') {
+		} else if (
+			newRow.type === 'RADIOBUTTONLIST' ||
+			newRow.type === 'CHECKBOXLIST' ||
+			newRow.type === 'DROPDOWNLIST'
+		) {
 			rowToAdd.options = newRow.options;
+		} else if (newRow.type === 'DATE') {
+			rowToAdd.minDate = newRow.minDate;
+			rowToAdd.maxDate = newRow.maxDate;
 		}
 
 		rows.push(rowToAdd);
@@ -225,6 +260,8 @@
 		newRow.placeholder = '';
 		newRow.defaultChecked = false;
 		newRow.options = '';
+		newRow.minDate = '';
+		newRow.maxDate = '';
 		newRow.required = false;
 
 		// Focus title input for next entry
@@ -237,12 +274,55 @@
 		newRow.placeholder = '';
 		newRow.defaultChecked = false;
 		newRow.options = '';
+		newRow.minDate = '';
+		newRow.maxDate = '';
 		newRow.required = false;
 	}
 </script>
 
 <div class="p-4">
 	<h1 class="mb-4 text-lg">RW Forms Table View Mockup</h1>
+
+	<div class="bg-base-200 mb-4 rounded-lg p-4">
+		<fieldset class="fieldset">
+			<legend class="fieldset-legend">Toggle expanded controls</legend>
+			<div class="flex gap-4">
+				<label class="label cursor-pointer gap-2">
+					<input
+						type="radio"
+						name="masterEdit"
+						class="radio radio-sm"
+						value="none"
+						checked={masterEditLevel === 'none'}
+						onchange={() => setAllEditLevel('none')}
+					/>
+					<span class="label-text">None</span>
+				</label>
+				<label class="label cursor-pointer gap-2">
+					<input
+						type="radio"
+						name="masterEdit"
+						class="radio radio-sm"
+						value="basic"
+						checked={masterEditLevel === 'basic'}
+						onchange={() => setAllEditLevel('basic')}
+					/>
+					<span class="label-text">Basic</span>
+				</label>
+				<label class="label cursor-pointer gap-2">
+					<input
+						type="radio"
+						name="masterEdit"
+						class="radio radio-sm"
+						value="all"
+						checked={masterEditLevel === 'all'}
+						onchange={() => setAllEditLevel('all')}
+					/>
+					<span class="label-text">All</span>
+				</label>
+			</div>
+		</fieldset>
+	</div>
 
 	<div class="my-4 overflow-x-auto">
 		<table class="table-sm table">
@@ -260,11 +340,7 @@
 					<th>Title</th>
 					<th>Type</th>
 					<th>Required</th>
-					<th>
-						<!-- <button class="btn btn-ghost btn-xs" onclick={toggleAllEdit}>
-							<SvgIcon type="mdi" path={mdiLeadPencil} size="16"></SvgIcon>
-						</button> -->
-					</th>
+					<th> </th>
 				</tr>
 			</thead>
 			<tbody>
@@ -273,28 +349,29 @@
 						<td>
 							<input
 								type="checkbox"
-								bind:checked={
-									() => checked.includes(row.id),
-									(c) => {
-										if (c) {
-											checked.push(row.id);
-										} else {
-											checked = checked.filter((id) => id !== row.id);
-										}
+								checked={checked.includes(row.id)}
+								onclick={(c: Event) => {
+									if (c.target.checked) {
+										checked.push(row.id);
+									} else {
+										checked = checked.filter((id) => id !== row.id);
 									}
-								}
+								}}
 								class="checkbox"
 							/>
 						</td>
 						<td>
-							<input type="text" class="input" bind:value={row.title} />
+							<input type="text" class="input w-100" bind:value={row.title} />
 						</td>
 						<td>
-							<select class="select" bind:value={row.type}>
+							<select class="select w-40" bind:value={row.type}>
 								<option value="TEXTBOX">{typeDisplayNames.TEXTBOX}</option>
 								<option value="TEXTAREA">{typeDisplayNames.TEXTAREA}</option>
 								<option value="CHECKBOX">{typeDisplayNames.CHECKBOX}</option>
 								<option value="RADIOBUTTONLIST">{typeDisplayNames.RADIOBUTTONLIST}</option>
+								<option value="CHECKBOXLIST">{typeDisplayNames.CHECKBOXLIST}</option>
+								<option value="DROPDOWNLIST">{typeDisplayNames.DROPDOWNLIST}</option>
+								<option value="DATE">{typeDisplayNames.DATE}</option>
 							</select>
 						</td>
 						<td>
@@ -337,7 +414,7 @@
 							</div>
 						</td>
 					</tr>
-					{#if editingRows.has(row.id)}
+					{#if getEffectiveEditLevel(row.id) !== 'none'}
 						<tr class="bg-base-100">
 							<td></td>
 							<td colspan="5">
@@ -362,7 +439,7 @@
 										</fieldset>
 									{/if}
 
-									{#if row.type === 'RADIOBUTTONLIST'}
+									{#if row.type === 'RADIOBUTTONLIST' || row.type === 'CHECKBOXLIST' || row.type === 'DROPDOWNLIST'}
 										<fieldset class="fieldset">
 											<legend class="fieldset-legend p-0">Options (one per line)</legend>
 											<textarea
@@ -374,17 +451,71 @@
 										</fieldset>
 									{/if}
 
-									<fieldset class="fieldset">
-										<legend class="fieldset-legend p-0">Required</legend>
-										<label class="label cursor-pointer justify-start gap-2">
-											<input
-												type="checkbox"
-												class="checkbox checkbox-sm"
-												bind:checked={row.required}
-											/>
-										</label>
-									</fieldset>
+									{#if row.type === 'DATE'}
+										<fieldset class="fieldset">
+											<legend class="fieldset-legend p-0">Minimum date (optional)</legend>
+											<input type="date" class="input w-40" bind:value={row.minDate} />
+										</fieldset>
+										<fieldset class="fieldset">
+											<legend class="fieldset-legend p-0">Maximum date (optional)</legend>
+											<input type="date" class="input w-40" bind:value={row.maxDate} />
+										</fieldset>
+									{/if}
 								</div>
+								{#if getEffectiveEditLevel(row.id) === 'all'}
+									<div class="mt-8 flex flex-wrap gap-8">
+										<fieldset class="fieldset">
+											<legend class="fieldset-legend p-0">Conditional logic</legend>
+											<textarea class="textarea w-90" placeholder="Conditional logic..." rows="2"
+											></textarea>
+										</fieldset>
+
+										<fieldset class="fieldset">
+											<legend class="fieldset-legend p-0">Advanced settings</legend>
+											<label class="label block cursor-pointer gap-1">
+												<input type="checkbox" class="checkbox checkbox-xs" />
+												<span class="label-text text-xs">Read-only</span>
+											</label>
+											<label class="label block cursor-pointer gap-1">
+												<input type="checkbox" class="checkbox checkbox-xs" />
+												<span class="label-text text-xs">Hidden</span>
+											</label>
+											<label class="label block cursor-pointer gap-1">
+												<input type="checkbox" class="checkbox checkbox-xs" />
+												<span class="label-text text-xs">Calculated</span>
+											</label>
+										</fieldset>
+									</div>
+
+									<fieldset class="fieldset mt-8">
+										<legend class="fieldset-legend p-0">Even more settings</legend>
+										<div>
+											<p class="mb-2">
+												In the unfathomable recesses of that enigmatically esoteric and clandestine
+												metropolis, the very articulation of whose dread nomenclature was a
+												profanation of cosmic proportions, I embarked upon a venture, my cerebration
+												weighed down by the ineffable arcana that lay ensconced beneath the aegis of
+												hoary antiquity. The monstrous assemblages of eldritch architecture loomed
+												with an inscrutable grandiosity, their imperious stones etched with cryptic
+												symbols and sigils, from which emanated the dread-laden murmurings of
+												primordial entities, whose dread dominion extended from the abysmal abysses
+												of cosmic nothingness.
+											</p>
+											<p>
+												I traversed the serpentine byways, their convoluted passageways and
+												non-Euclidean angles bearing witness to an architectural nightmare, born of
+												a disquieting, multidimensional geometry. The very atmosphere reeked of a
+												palpable sense of foreboding, as though the very æther itself were saturated
+												with the malevolence of beings that existed beyond the outer limits of
+												mortal comprehension. A mephitic and brackish fragrance wafted from the
+												inscrutable quays, where spectral barques with sails resembling spectral
+												pinions lay moored, their skeletal crews haunted by the horrors they had
+												witnessed in their accursed sojourns through the unfathomable abysses of
+												existence.
+											</p>
+										</div>
+									</fieldset>
+								{/if}
 							</td>
 						</tr>
 					{/if}
@@ -441,6 +572,9 @@
 					<option value="TEXTAREA">{typeDisplayNames.TEXTAREA}</option>
 					<option value="CHECKBOX">{typeDisplayNames.CHECKBOX}</option>
 					<option value="RADIOBUTTONLIST">{typeDisplayNames.RADIOBUTTONLIST}</option>
+					<option value="CHECKBOXLIST">{typeDisplayNames.CHECKBOXLIST}</option>
+					<option value="DROPDOWNLIST">{typeDisplayNames.DROPDOWNLIST}</option>
+					<option value="DATE">{typeDisplayNames.DATE}</option>
 				</select>
 			</fieldset>
 
@@ -463,7 +597,7 @@
 				</fieldset>
 			{/if}
 
-			{#if newRow.type === 'RADIOBUTTONLIST'}
+			{#if newRow.type === 'RADIOBUTTONLIST' || newRow.type === 'CHECKBOXLIST' || newRow.type === 'DROPDOWNLIST'}
 				<fieldset class="fieldset">
 					<legend class="fieldset-legend">Options (one per line)</legend>
 					<textarea
@@ -472,6 +606,17 @@
 						placeholder="Option 1&#10;Option 2&#10;Option 3"
 						rows="3"
 					></textarea>
+				</fieldset>
+			{/if}
+
+			{#if newRow.type === 'DATE'}
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Minimum date</legend>
+					<input type="date" class="input" bind:value={newRow.minDate} />
+				</fieldset>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Maximum date</legend>
+					<input type="date" class="input" bind:value={newRow.maxDate} />
 				</fieldset>
 			{/if}
 
